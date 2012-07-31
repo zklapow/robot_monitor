@@ -5,4 +5,4 @@ find_package(catkin REQUIRED)
 catkin_stack()
 catkin_project(robot_monitor)
 
-catkin_export_python()
+catkin_python_setup()
