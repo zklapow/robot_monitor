@@ -156,8 +156,7 @@ class RobotMonitor(QWidget):
 
     def __init__(self, topic):
         super(RobotMonitor, self).__init__()
-
-        self.setWindowTitle('Robot Monitor')
+        self.setObjectName('Robot Monitor')
 
         self.top_items = []
         layout = QVBoxLayout()
@@ -181,7 +180,8 @@ class RobotMonitor(QWidget):
 
         self.setLayout(layout)
 
-        self.sub = rospy.Subscriber(topic, DiagnosticArray, self.cb)
+        self.topic = topic
+        self.sub = rospy.Subscriber(self.topic, DiagnosticArray, self.cb)
 
     def cb(self, msg):
         self.sig_clear.emit()
@@ -238,3 +238,9 @@ class RobotMonitor(QWidget):
         i = QTreeWidgetItem()
         i.setText(0, msg)
         self.warn.addTopLevelItem(i)
+
+    def close(self):
+        if self.sub:
+            self.sub.unregister()
+            self.sub = None
+
