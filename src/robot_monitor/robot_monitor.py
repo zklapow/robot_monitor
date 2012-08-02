@@ -1,7 +1,9 @@
+import roslib;roslib.load_manifest('robot_monitor')
 import rospy
 from diagnostic_msgs.msg import DiagnosticArray
 
-import QtGui
+import qt_gui.qt_binding_helper
+
 from QtGui import QWidget, QVBoxLayout, QTreeWidget, QTextCursor, QTreeWidgetItem, QTextEdit, QPushButton
 
 from QtCore import pyqtSignal
@@ -134,6 +136,8 @@ class InspectorWidget(QWidget):
         self.disp.insertPlainText('\n')
 
     def update(self, status):
+        self.status = status
+
         self.clear.emit()
         self.write.emit("Full Name", status.name)
         self.write.emit("Component", status.name.split('/')[-1])
