@@ -183,6 +183,7 @@ class RobotMonitor(QWidget):
 
         self.topic = topic
         self.sub = rospy.Subscriber(self.topic, DiagnosticArray, self.cb)
+        self.setWindowTitle('Robot Monitor')
 
     def cb(self, msg):
         self.sig_clear.emit()
