@@ -2,11 +2,8 @@ import roslib;roslib.load_manifest('robot_monitor')
 import rospy
 from diagnostic_msgs.msg import DiagnosticArray
 
-import qt_gui.qt_binding_helper
-
-from QtGui import QWidget, QVBoxLayout, QTreeWidget, QTextCursor, QTreeWidgetItem, QTextEdit, QPushButton
-
-from QtCore import pyqtSignal
+from python_qt_binding.QtGui import QWidget, QVBoxLayout, QTreeWidget, QTextCursor, QTreeWidgetItem, QTextEdit, QPushButton
+from python_qt_binding.QtCore import pyqtSignal
 
 def get_nice_name(status_name):
     return status_name.split('/')[-1]
@@ -186,6 +183,7 @@ class RobotMonitor(QWidget):
 
         self.topic = topic
         self.sub = rospy.Subscriber(self.topic, DiagnosticArray, self.cb)
+        self.setWindowTitle('Robot Monitor')
 
     def cb(self, msg):
         self.sig_clear.emit()
