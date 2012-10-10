@@ -104,14 +104,18 @@ class InspectorWidget(QWidget):
         super(InspectorWidget, self).__init__()
         self.status = status
         self.setWindowTitle(status.name)
+        self.paused = False
 
         layout = QVBoxLayout()
         
         self.disp = QTextEdit()
         self.snapshot = QPushButton("Snapshot")
 
+        self.time = TimelineWidget(self)
+
         layout.addWidget(self.disp)
         layout.addWidget(self.snapshot)
+        layout.addWidget(self.time)
 
         self.snaps = []
         self.snapshot.clicked.connect(self.take_snapshot)
@@ -134,19 +138,28 @@ class InspectorWidget(QWidget):
         self.disp.insertPlainText(v)
         self.disp.insertPlainText('\n')
 
+    def pause(self, msg):
+        self.update(msg);
+        self.paused = True
+
+    def unpause(self):
+        self.paused = False
+
     def update(self, status):
-        self.status = status
+        if not self.paused:
+            self.status = status
+            self.time.add_message(status)
 
-        self.clear.emit()
-        self.write.emit("Full Name", status.name)
-        self.write.emit("Component", status.name.split('/')[-1])
-        self.write.emit("Hardware ID", status.hardware_id)
-        self.write.emit("Level", str(status.level))
-        self.write.emit("Message", status.message)
-        self.newline.emit()
+            self.clear.emit()
+            self.write.emit("Full Name", status.name)
+            self.write.emit("Component", status.name.split('/')[-1])
+            self.write.emit("Hardware ID", status.hardware_id)
+            self.write.emit("Level", str(status.level))
+            self.write.emit("Message", status.message)
+            self.newline.emit()
 
-        for v in status.values:
-            self.write.emit(v.key, v.value)
+            for v in status.values:
+                self.write.emit(v.key, v.value)
 
     def take_snapshot(self):
         snap = Snapshot(self.status)
