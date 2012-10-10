@@ -174,8 +174,8 @@ class TimelineWidget(QWidget):
         self._scene = QGraphicsScene()
         self._colors = [QColor('green'), QColor('yellow'), QColor('red')]
 
-        self._messages = [None for x in range(10)]
-        self._mq = [1 for x in range(10)] 
+        self._messages = [None for x in range(20)]
+        self._mq = [1 for x in range(20)] 
 
         self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
