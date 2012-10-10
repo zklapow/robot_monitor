@@ -228,11 +228,7 @@ class TimelineWidget(QWidget):
         lvl = 0
         for status in msg.status:
             if status.level > lvl:
-                if status.level > 2:
-                    # protect against weird status values
-                    lvl = 2
-                else:
-                    lvl = status.level
+                lvl = status.level
 
         return lvl
 
@@ -242,9 +238,14 @@ class TimelineWidget(QWidget):
 
         self._mq = self._mq[1:]
         try:
-            self._mq.append(msg.level)
+            lvl = msg.level
         except AttributeError:
-            self._mq.append(self.get_worst(msg))
+            lvl = self.get_worst(msg)
+
+        if lvl > 2:
+            lvl = 2
+
+        self._mq.append(lvl)
 
         self.update.emit()
 
