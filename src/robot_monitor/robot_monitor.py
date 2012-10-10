@@ -2,8 +2,10 @@ import roslib;roslib.load_manifest('robot_monitor')
 import rospy
 from diagnostic_msgs.msg import DiagnosticArray
 
-from python_qt_binding.QtGui import QWidget, QVBoxLayout, QTreeWidget, QTextCursor, QTreeWidgetItem, QTextEdit, QPushButton
-from python_qt_binding.QtCore import pyqtSignal
+from python_qt_binding.QtGui import QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTextCursor, QTreeWidgetItem, QTextEdit, QPushButton, QGraphicsScene, QGraphicsView, QPen, QBrush, QColor
+from python_qt_binding.QtCore import pyqtSignal, Qt
+
+from math import floor
 
 def get_nice_name(status_name):
     return status_name.split('/')[-1]
@@ -67,34 +69,34 @@ class StatusItem(QTreeWidgetItem):
     def strip_child(self, child):
         return child.replace(self.name, '')
 
+class Snapshot(QTextEdit):
+    """Display a single static status message. Helps facilitate copy/paste"""
+    def __init__(self, status):
+        super(Snapshot, self).__init__()
+
+        self.write("Full Name", status.name)
+        self.write("Component", status.name.split('/')[-1])
+        self.write("Hardware ID", status.hardware_id)
+        self.write("Level", status.level)
+        self.write("Message", status.message)
+        self.insertPlainText('\n')
+
+        for value in status.values:
+            self.write(value.key, value.value)
+
+        self.setGeometry(0,0, 300, 400)
+        self.show()
+
+    def write(self, k, v):
+        self.setFontWeight(75)
+        self.insertPlainText(str(k))
+        self.insertPlainText(': ')
+     
+        self.setFontWeight(50)
+        self.insertPlainText(str(v))
+        self.insertPlainText('\n')           
+
 class InspectorWidget(QWidget):
-    class Snapshot(QTextEdit):
-        """Display a single sitatic status message. Helps facilitate copy/paste"""
-        def __init__(self, status):
-            super(InspectorWidget.Snapshot, self).__init__()
-
-            self.write("Full Name", status.name)
-            self.write("Component", status.name.split('/')[-1])
-            self.write("Hardware ID", status.hardware_id)
-            self.write("Level", status.level)
-            self.write("Message", status.message)
-            self.insertPlainText('\n')
-
-            for value in status.values:
-                self.write(value.key, value.value)
-
-            self.setGeometry(0,0, 300, 400)
-            self.show()
-
-        def write(self, k, v):
-            self.setFontWeight(75)
-            self.insertPlainText(str(k))
-            self.insertPlainText(': ')
-         
-            self.setFontWeight(50)
-            self.insertPlainText(str(v))
-            self.insertPlainText('\n')           
-
     write = pyqtSignal(str, str)
     newline = pyqtSignal()
     clear = pyqtSignal()
@@ -147,8 +149,97 @@ class InspectorWidget(QWidget):
             self.write.emit(v.key, v.value)
 
     def take_snapshot(self):
-        snap = InspectorWidget.Snapshot(self.status)
+        snap = Snapshot(self.status)
         self.snaps.append(snap)
+
+class TimelineWidget(QWidget):
+    class TimelineView(QGraphicsView):
+        def __init__(self, parent):
+            super(TimelineWidget.TimelineView, self).__init__()
+            self.parent = parent
+
+        def mouseReleaseEvent(self, event):
+            self.parent.mouse_release(self, event)
+
+    update = pyqtSignal()
+    def __init__(self, parent):
+        super(TimelineWidget, self).__init__()
+        self.parent = parent
+
+        self._layout = QHBoxLayout()
+
+        #self._view = QGraphicsView()
+        self._view = TimelineWidget.TimelineView(self)
+
+        self._scene = QGraphicsScene()
+        self._colors = [QColor('green'), QColor('yellow'), QColor('red')]
+
+        self._messages = [None for x in range(10)]
+        self._mq = [1 for x in range(10)] 
+
+        self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._view.setScene(self._scene)
+        self._layout.addWidget(self._view, 1)
+
+        self.pause_button = QPushButton('Pause')
+        self.pause_button.setCheckable(True)
+        self.pause_button.clicked.connect(self.pause)
+        self._layout.addWidget(self.pause_button)
+
+        self.setLayout(self._layout)
+
+        self.update.connect(self.redraw)
+
+    def redraw(self):
+        self._scene.clear()
+        self._scene
+        for i, m in enumerate(self._mq):
+            w = self._view.viewport().width()/len(self._mq)
+            h = self._view.viewport().height()
+            rect = self._scene.addRect(w*i, 0, w, h, QColor('black'), self._colors[m])
+
+    def mouse_release(self, event):
+        print("something was clicked!")
+
+    def resizeEvent(self, event):
+        self.redraw()
+
+    def get_worst(self, msg):
+        lvl = 0
+        for status in msg.status:
+            if status.level > lvl:
+                if status.level > 2:
+                    # protect against weird status values
+                    lvl = 2
+                else:
+                    lvl = status.level
+
+        return lvl
+
+    def add_message(self, msg):
+        self._messages = self._messages[1:]
+        self._messages.append(msg)
+
+        self._mq = self._mq[1:]
+        try:
+            self._mq.append(msg.level)
+        except AttributeError:
+            self._mq.append(self.get_worst(msg))
+
+        self.update.emit()
+
+    def mouseClickEvent(self, event):
+        p = self.mapToScene(event.x(), event.y())
+        i = floor(p.x() / (self._view.viewport().width()/len(self._mq)))
+
+        self.parent.pause(self._messages[i])
+
+    def pause(self, state):
+        if state:
+            self.parent.pause(self._messages[-1])
+        else:
+            self.parent.unpause()
 
 class RobotMonitor(QWidget):
     sig_err = pyqtSignal(str)
@@ -175,20 +266,27 @@ class RobotMonitor(QWidget):
         self.comp.setHeaderLabel("All")
         self.comp.itemDoubleClicked.connect(self.tree_clicked)
 
+        self.time = TimelineWidget(self)
+
         layout.addWidget(self.err)
         layout.addWidget(self.warn)
         layout.addWidget(self.comp, 1)
+        layout.addWidget(self.time, 0)
 
         self.setLayout(layout)
+
+        self.paused = False
 
         self.topic = topic
         self.sub = rospy.Subscriber(self.topic, DiagnosticArray, self.cb)
         self.setWindowTitle('Robot Monitor')
 
     def cb(self, msg):
-        self.sig_clear.emit()
-        self.update_tree(msg)
-        self.update_we(msg)
+        if not self.paused:
+            self.sig_clear.emit()
+            self.update_tree(msg)
+            self.update_we(msg)
+            self.time.add_message(msg)
 
     def tree_clicked(self, item, yes):
         item.on_click()
@@ -219,6 +317,7 @@ class RobotMonitor(QWidget):
         return ret
 
     def update_we(self, msg):
+        """Update the warning and error boxes"""
         for status in msg.status:
             if status.level == status.WARN:
                 txt = "%s : %s"%(status.name, status.message)
@@ -226,6 +325,15 @@ class RobotMonitor(QWidget):
             elif status.level == status.ERROR:
                 txt = "%s : %s"%(status.name, status.message)
                 self.sig_err.emit(txt)
+
+    def pause(self, msg):
+        self.paused = True
+        self.sig_clear.emit()
+        self.update_we(msg)
+        self.update_tree(msg)
+
+    def unpause(self):
+        self.paused = False
 
     def clear(self):
         self.err.clear()
