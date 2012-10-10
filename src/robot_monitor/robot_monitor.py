@@ -113,9 +113,9 @@ class InspectorWidget(QWidget):
 
         self.time = TimelineWidget(self)
 
-        layout.addWidget(self.disp)
+        layout.addWidget(self.disp, 1)
+        layout.addWidget(self.time, 0)
         layout.addWidget(self.snapshot)
-        layout.addWidget(self.time)
 
         self.snaps = []
         self.snapshot.clicked.connect(self.take_snapshot)
@@ -123,11 +123,11 @@ class InspectorWidget(QWidget):
         self.write.connect(self.write_kv)
         self.newline.connect(lambda: self.disp.insertPlainText('\n'))
         self.clear.connect(lambda: self.disp.clear())
-        self.update(status)
 
         self.setLayout(layout)
         self.setGeometry(0,0,300,400)
         self.show()
+        self.update(status)
 
     def write_kv(self, k, v):
         self.disp.setFontWeight(75)
