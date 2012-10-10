@@ -159,7 +159,7 @@ class TimelineWidget(QWidget):
             self.parent = parent
 
         def mouseReleaseEvent(self, event):
-            self.parent.mouse_release(self, event)
+            self.parent.mouse_release(event)
 
     update = pyqtSignal()
     def __init__(self, parent):
@@ -195,12 +195,15 @@ class TimelineWidget(QWidget):
         self._scene.clear()
         self._scene
         for i, m in enumerate(self._mq):
-            w = self._view.viewport().width()/len(self._mq)
+            w = float(self._view.viewport().width())/len(self._mq)
             h = self._view.viewport().height()
             rect = self._scene.addRect(w*i, 0, w, h, QColor('black'), self._colors[m])
 
     def mouse_release(self, event):
-        print("something was clicked!")
+        i = floor(event.x()/(float(self._view.viewport().width())/len(self._mq)))
+        self.parent.pause(self._messages[int(i)])
+        if not self.pause_button.isChecked():
+            self.pause_button.toggle()
 
     def resizeEvent(self, event):
         self.redraw()
@@ -228,12 +231,6 @@ class TimelineWidget(QWidget):
             self._mq.append(self.get_worst(msg))
 
         self.update.emit()
-
-    def mouseClickEvent(self, event):
-        p = self.mapToScene(event.x(), event.y())
-        i = floor(p.x() / (self._view.viewport().width()/len(self._mq)))
-
-        self.parent.pause(self._messages[i])
 
     def pause(self, state):
         if state:
