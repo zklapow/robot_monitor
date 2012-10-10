@@ -200,10 +200,13 @@ class TimelineWidget(QWidget):
             rect = self._scene.addRect(w*i, 0, w, h, QColor('black'), self._colors[m])
 
     def mouse_release(self, event):
-        i = floor(event.x()/(float(self._view.viewport().width())/len(self._mq)))
-        self.parent.pause(self._messages[int(i)])
-        if not self.pause_button.isChecked():
-            self.pause_button.toggle()
+        i = int(floor(event.x()/(float(self._view.viewport().width())/len(self._mq))))
+
+        msg = self._messages[i]
+        if msg:
+            self.parent.pause(msg)
+            if not self.pause_button.isChecked():
+                self.pause_button.toggle()
 
     def resizeEvent(self, event):
         self.redraw()
